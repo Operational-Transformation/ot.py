@@ -51,6 +51,18 @@ def random_operation(doc):
 random_test_iterations = 64
 
 
+def repeat(fn):
+    """Decorator for running the function's body multiple times."""
+    def repeated():
+        i = 0
+        while i < random_test_iterations:
+            fn()
+            i += 1
+    # nosetest runs functions that start with 'test_'
+    repeated.__name__ = fn.__name__
+    return repeated
+
+
 def test_append():
     o = TextOperation()
     o.append(Delete(0))
@@ -69,11 +81,11 @@ def test_append():
     ])
 
 
+@repeat
 def test_len_difference():
-    for i in xrange(0, random_test_iterations):
-        doc = random_string(50)
-        operation = random_operation(doc)
-        assert len(operation(doc)) - len(doc) == operation.len_difference()
+    doc = random_string(50)
+    operation = random_operation(doc)
+    assert len(operation(doc)) - len(doc) == operation.len_difference()
 
 
 def test_apply():
@@ -82,28 +94,28 @@ def test_apply():
     assert o(doc) == 'loremums'
 
 
+@repeat
 def test_invert():
-    for i in xrange(0, random_test_iterations):
-        doc = random_string(50)
-        operation = random_operation(doc)
-        inverse = operation.invert(doc)
-        assert doc == inverse(operation(doc))
+    doc = random_string(50)
+    operation = random_operation(doc)
+    inverse = operation.invert(doc)
+    assert doc == inverse(operation(doc))
 
 
+@repeat
 def test_compose():
-    for i in xrange(0, random_test_iterations):
-        doc = random_string(50)
-        a = random_operation(doc)
-        doc_a = a(doc)
-        b = random_operation(doc_a)
-        ab = a.compose(b)
-        assert b(doc_a) == ab(doc)
+    doc = random_string(50)
+    a = random_operation(doc)
+    doc_a = a(doc)
+    b = random_operation(doc_a)
+    ab = a.compose(b)
+    assert b(doc_a) == ab(doc)
 
 
+@repeat
 def test_transform():
-    for i in xrange(0, random_test_iterations):
-        doc = random_string(50)
-        a = random_operation(doc)
-        b = random_operation(doc)
-        (a_prime, b_prime) = TextOperation.transform(a, b)
-        assert a_prime(b(doc)) == b_prime(a(doc))
+    doc = random_string(50)
+    a = random_operation(doc)
+    b = random_operation(doc)
+    (a_prime, b_prime) = TextOperation.transform(a, b)
+    assert a_prime(b(doc)) == b_prime(a(doc))
