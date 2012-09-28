@@ -95,10 +95,7 @@ def test_compose():
         doc = random_string(50)
         a = random_operation(doc)
         doc_a = a(doc)
-        print doc
-        print doc_a
         b = random_operation(doc_a)
-        print b(doc_a)
         ab = a.compose(b)
         assert b(doc_a) == ab(doc)
 
