@@ -12,9 +12,10 @@ def random_string(max_len=16):
     """Generate a random string."""
 
     s = ''
-    for i in xrange(0, random.randint(0, max_len)):
-        # append random lowercase ascii character
+    s_len = random.randint(0, max_len)
+    while s_len > 0:
         s += random_char()
+        s_len -= 1
     return s
 
 
