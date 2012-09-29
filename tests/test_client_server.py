@@ -49,14 +49,16 @@ def test_client_server_interaction():
     document = random_string()
     server = Server(document)
 
-    def server_receive((client_id, revision, operation)):
+    def server_receive(msg):
+        (client_id, revision, operation) = msg
         operation_p = server.receive_operation(revision, operation)
         msg = (client_id, operation_p)
         client1_receive_channel.write(msg)
         client2_receive_channel.write(msg)
 
     def client_receive(client):
-        def rcv((client_id, operation)):
+        def rcv(msg):
+            (client_id, operation) = msg
             if client.id == client_id:
                 client.server_ack()
             else:
