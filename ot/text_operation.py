@@ -235,6 +235,11 @@ class TextOperation(object):
                 b = None
                 continue
 
+            if a == None:
+                raise IncompatibleOperationError("Cannot compose operations: first operation is too short")
+            if b == None:
+                raise IncompatibleOperationError("Cannot compose operations: first operation is too long")
+
             min_len = min(len(a), len(b))
             if isinstance(a, Retain) and isinstance(b, Retain):
                 min_retain = Retain(min_len)
