@@ -70,7 +70,7 @@ class TextOperation(object):
         for op in self:
             if isinstance(op, str):
                 s += len(op)
-            if op < 0:
+            elif op < 0:
                 s += op
         return s
 
