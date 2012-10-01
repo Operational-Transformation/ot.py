@@ -1,79 +1,50 @@
-class Retain(object):
-    """Skips a given number of characters at the current cursor position."""
-
-    def __init__(self, n):
-        self.n = n
-
-    def __eq__(self, other):
-        return isinstance(other, Retain) and self.n == other.n
-
-    def __len__(self):
-        return self.n
-
-    def len_difference(self):
-        return 0
-
-    def shorten(self, n):
-        return Retain(self.n - n)
-
-    def merge(self, other):
-        return Retain(self.n + other.n)
+# Operations are lists of ops. There are three types of ops:
+#
+# * Insert ops: insert a given string at the current cursor position.
+#   Represented by strings.
+# * Retain ops: Advance the cursor position by a given number of characters.
+#   Represented by positive ints.
+# * Delete ops: Delete the next n characters. Represented by negative ints.
 
 
-class Insert(object):
-    """Inserts the given string at the current cursor position."""
-
-    def __init__(self, str):
-        self.str = str
-
-    def __eq__(self, other):
-        return isinstance(other, Insert) and self.str == other.str
-
-    def __len__(self):
-        return len(self.str)
-
-    def len_difference(self):
-        return len(self)
-
-    def shorten(self, n):
-        return Insert(self.str[n:])
-
-    def merge(self, other):
-        return Insert(self.str + other.str)
+def _is_retain(op):
+    return isinstance(op, int) and op > 0
 
 
-class Delete(object):
-    """Deletes a given number of characters at the current cursor position."""
+def _is_delete(op):
+    return isinstance(op, int) and op < 0
 
-    def __init__(self, n):
-        self.n = n
 
-    def __eq__(self, other):
-        return isinstance(other, Delete) and self.n == other.n
+def _is_insert(op):
+    return isinstance(op, str)
 
-    def __len__(self):
-        return self.n
 
-    def len_difference(self):
-        return -len(self)
+def _op_len(op):
+    if isinstance(op, str):
+        return len(op)
+    if op < 0:
+        return -op
+    return op
 
-    def shorten(self, n):
-        return Delete(self.n - n)
 
-    def merge(self, other):
-        return Delete(self.n + other.n)
+def _shorten(op, by):
+    if isinstance(op, str):
+        return op[by:]
+    if op < 0:
+        return op + by
+    return op - by
 
 
 def _shorten_ops(a, b):
     """Shorten two ops by the part that cancels each other out."""
 
-    len_a = len(a)
-    len_b = len(b)
+    len_a = _op_len(a)
+    len_b = _op_len(b)
     if len_a == len_b:
         return (None, None)
     if len_a > len_b:
-        return (a.shorten(len_b), None)
-    return (None, b.shorten(len_a))
+        return (_shorten(a, len_b), None)
+    return (None, _shorten(b, len_a))
 
 
 class TextOperation(object):
@@ -95,16 +66,48 @@ class TextOperation(object):
         """Returns the difference in length between the input and the output
         string when this operations is applied.
         """
-        return sum([op.len_difference() for op in self])
+        s = 0
+        for op in self:
+            if isinstance(op, str):
+                s += len(op)
+            if op < 0:
+                s += op
+        return s
 
-    def append(self, op):
-        """Appends an op at the end of the operation. Merges operations if possible."""
+    def retain(self, r):
+        """Skips a given number of characters at the current cursor position."""
 
-        if len(op) == 0:
-            return
-        if len(self.ops) > 0 and self.ops[-1].__class__ == op.__class__:
-            op = self.ops.pop().merge(op)
-        self.ops.append(op)
+        if r == 0:
+            return self
+        if len(self.ops) > 0 and isinstance(self.ops[-1], int) and self.ops[-1] > 0:
+            self.ops[-1] += r
+        else:
+            self.ops.append(r)
+        return self
+
+    def insert(self, s):
+        """Inserts the given string at the current cursor position."""
+
+        if len(s) == 0:
+            return self
+        if len(self.ops) > 0 and isinstance(self.ops[-1], str):
+            self.ops[-1] += s
+        else:
+            self.ops.append(s)
+        return self
+
+    def delete(self, d):
+        """Deletes a given number of characters at the current cursor position."""
+
+        if d == 0:
+            return self
+        if d > 0:
+            d = -d
+        if len(self.ops) > 0 and isinstance(self.ops[-1], int) and self.ops[-1] < 0:
+            self.ops[-1] += d
+        else:
+            self.ops.append(d)
+        return self
 
     def __call__(self, doc):
         """Apply this operation to a string, returning a new string."""
@@ -113,17 +116,17 @@ class TextOperation(object):
         parts = []
 
         for op in self:
-            if isinstance(op, Retain):
-                if i + len(op) > len(doc):
+            if _is_retain(op):
+                if i + op > len(doc):
                     raise Exception("Cannot apply operation: operation is too long.")
-                parts.append(doc[i:(i + len(op))])
-                i += len(op)
-            elif isinstance(op, Insert):
-                parts.append(op.str)
+                parts.append(doc[i:(i + op)])
+                i += op
+            elif _is_insert(op):
+                parts.append(op)
             else:
-                if i + len(op) > len(doc):
+                i -= op
+                if i > len(doc):
                     raise IncompatibleOperationError("Cannot apply operation: operation is too long.")
-                i += len(op)
 
         if i != len(doc):
             raise IncompatibleOperationError("Cannot apply operation: operation is too short.")
@@ -141,14 +144,14 @@ class TextOperation(object):
         inverse = TextOperation()
 
         for op in self:
-            if isinstance(op, Retain):
-                inverse.append(op)
-                i += len(op)
-            elif isinstance(op, Insert):
-                inverse.append(Delete(len(op)))
+            if _is_retain(op):
+                inverse.retain(op)
+                i += op
+            elif _is_insert(op):
+                inverse.delete(len(op))
             else:
-                inverse.append(Insert(doc[i:(i + len(op))]))
-                i += len(op)
+                inverse.insert(doc[i:(i - op)])
+                i -= op
 
         return inverse
 
@@ -172,12 +175,12 @@ class TextOperation(object):
                 # end condition: both operations have been processed
                 break
 
-            if isinstance(a, Delete):
-                operation.append(a)
+            if _is_delete(a):
+                operation.delete(a)
                 a = None
                 continue
-            if isinstance(b, Insert):
-                operation.append(b)
+            if _is_insert(b):
+                operation.insert(b)
                 b = None
                 continue
 
@@ -186,14 +189,14 @@ class TextOperation(object):
             if b == None:
                 raise IncompatibleOperationError("Cannot compose operations: first operation is too long")
 
-            min_len = min(len(a), len(b))
-            if isinstance(a, Retain) and isinstance(b, Retain):
-                operation.append(Retain(min_len))
-            elif isinstance(a, Insert) and isinstance(b, Retain):
-                operation.append(Insert(a.str[:min_len]))
-            elif isinstance(a, Retain) and isinstance(b, Delete):
-                operation.append(Delete(min_len))
-            # remaining case: isinstance(a, Insert) and isinstance(b, Delete)
+            min_len = min(_op_len(a), _op_len(b))
+            if _is_retain(a) and _is_retain(b):
+                operation.retain(min_len)
+            elif _is_insert(a) and _is_retain(b):
+                operation.insert(a[:min_len])
+            elif _is_retain(a) and _is_delete(b):
+                operation.delete(min_len)
+            # remaining case: _is_insert(a) and _is_delete(b)
             # in this case the delete op deletes the text that has been added
             # by the insert operation and we don't need to do anything
 
@@ -224,14 +227,14 @@ class TextOperation(object):
                 # end condition: both operations have been processed
                 break
 
-            if isinstance(a, Insert):
-                a_prime.append(a)
-                b_prime.append(Retain(len(a)))
+            if _is_insert(a):
+                a_prime.insert(a)
+                b_prime.retain(len(a))
                 a = None
                 continue
-            if isinstance(b, Insert):
-                a_prime.append(Retain(len(b)))
-                b_prime.append(b)
+            if _is_insert(b):
+                a_prime.retain(len(b))
+                b_prime.insert(b)
                 b = None
                 continue
 
@@ -240,16 +243,15 @@ class TextOperation(object):
             if b == None:
                 raise IncompatibleOperationError("Cannot compose operations: first operation is too long")
 
-            min_len = min(len(a), len(b))
-            if isinstance(a, Retain) and isinstance(b, Retain):
-                min_retain = Retain(min_len)
-                a_prime.append(min_retain)
-                b_prime.append(min_retain)
-            elif isinstance(a, Delete) and isinstance(b, Retain):
-                a_prime.append(Delete(min_len))
-            elif isinstance(a, Retain) and isinstance(b, Delete):
-                b_prime.append(Delete(min_len))
-            # remaining case: isinstance(a, Delete) and isinstance(b, Delete)
+            min_len = min(_op_len(a), _op_len(b))
+            if _is_retain(a) and _is_retain(b):
+                a_prime.retain(min_len)
+                b_prime.retain(min_len)
+            elif _is_delete(a) and _is_retain(b):
+                a_prime.delete(min_len)
+            elif _is_retain(a) and _is_delete(b):
+                b_prime.delete(min_len)
+            # remaining case: _is_delete(a) and _is_delete(b)
             # in this case both operations delete the same string and we don't
             # need to do anything
 

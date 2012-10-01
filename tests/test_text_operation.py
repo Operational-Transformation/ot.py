@@ -30,42 +30,38 @@ def random_operation(doc):
     def gen_retain():
         r = random.randint(1, max_len)
         i[0] += r
-        return Retain(r)
+        o.retain(r)
 
     def gen_insert():
-        return Insert(random_char() + random_string(9))
+        o.insert(random_char() + random_string(9))
 
     def gen_delete():
         d = random.randint(1, max_len)
         i[0] += d
-        return Delete(d)
+        o.delete(d)
 
     while i[0] < len(doc):
         max_len = min(10, len(doc) - i[0])
-        o.append(random.choice([gen_retain, gen_insert, gen_delete])())
+        random.choice([gen_retain, gen_insert, gen_delete])()
 
     if random.random() < 0.5:
-        o.append(gen_insert())
+        gen_insert()
 
     return o
 
 
 def test_append():
     o = TextOperation()
-    o.append(Delete(0))
-    o.append(Insert('lorem'))
-    o.append(Retain(0))
-    o.append(Insert(' ipsum'))
-    o.append(Retain(3))
-    o.append(Insert(''))
-    o.append(Retain(5))
-    o.append(Delete(8))
+    o.delete(0)
+    o.insert('lorem')
+    o.retain(0)
+    o.insert(' ipsum')
+    o.retain(3)
+    o.insert('')
+    o.retain(5)
+    o.delete(8)
     assert len(o.ops) == 3
-    assert o == TextOperation([
-        Insert('lorem ipsum'),
-        Retain(8),
-        Delete(8)
-    ])
+    assert o == TextOperation(['lorem ipsum', 8, -8])
 
 
 @repeat
@@ -77,7 +73,7 @@ def test_len_difference():
 
 def test_apply():
     doc = 'Lorem ipsum'
-    o = TextOperation([Delete(1), Insert('l'), Retain(4), Delete(4), Retain(2), Insert('s')])
+    o = TextOperation().delete(1).insert('l').retain(4).delete(4).retain(2).insert('s')
     assert o(doc) == 'loremums'
 
 
