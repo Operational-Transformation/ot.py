@@ -36,7 +36,8 @@ class Server(object):
         to send to the clients.
         """
 
-        if self.backend.get_last_revision_from_user(user_id) >= revision:
+        last_by_user = self.backend.get_last_revision_from_user(user_id)
+        if last_by_user and last_by_user >= revision:
             return
 
         Operation = operation.__class__
