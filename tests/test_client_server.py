@@ -1,8 +1,9 @@
-from test_text_operation import random_string, random_operation, repeat
+from test_text_operation import random_string, random_operation
+from helpers import repeat
 import random
 
 from ot.client import Client
-from ot.server import Server
+from ot.server import MemoryBackend, Server
 
 
 class MyClient(Client):
@@ -47,11 +48,11 @@ class NetworkChannel():
 @repeat
 def test_client_server_interaction():
     document = random_string()
-    server = Server(document)
+    server = Server(document, MemoryBackend())
 
     def server_receive(msg):
         (client_id, revision, operation) = msg
-        operation_p = server.receive_operation(revision, operation)
+        operation_p = server.receive_operation(client_id, revision, operation)
         msg = (client_id, operation_p)
         client1_receive_channel.write(msg)
         client2_receive_channel.write(msg)
