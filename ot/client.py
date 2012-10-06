@@ -10,7 +10,7 @@ class Client(object):
 
     def __init__(self, revision):
         self.revision = revision
-        self.state = Synchronized()
+        self.state = synchronized
 
     def apply_client(self, operation):
         """Call this method when the user (!) changes the document."""
@@ -58,6 +58,10 @@ class Synchronized(object):
         raise RuntimeError("There is no pending operation.")
 
 
+# Singleton
+synchronized = Synchronized()
+
+
 class AwaitingConfirm(object):
     """In the 'awaitingConfirm' state, there's one operation the client has sent
     to the server and is still waiting for an acknowledgement.
@@ -87,7 +91,7 @@ class AwaitingConfirm(object):
         return AwaitingConfirm(outstanding_p)
 
     def server_ack(self, client):
-        return Synchronized()
+        return synchronized
 
 
 class AwaitingWithBuffer(object):
