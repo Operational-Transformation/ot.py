@@ -101,4 +101,5 @@ def test_transform():
     a = random_operation(doc)
     b = random_operation(doc)
     (a_prime, b_prime) = TextOperation.transform(a, b)
+    assert a + b_prime == b + a_prime
     assert a_prime(b(doc)) == b_prime(a(doc))

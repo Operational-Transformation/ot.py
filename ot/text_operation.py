@@ -92,6 +92,17 @@ class TextOperation(object):
             return self
         if len(self.ops) > 0 and isinstance(self.ops[-1], str):
             self.ops[-1] += s
+        elif len(self.ops) > 0 and isinstance(self.ops[-1], int) and self.ops[-1] < 0:
+            # It doesn't matter when an operation is applied whether the operation
+            # is delete(3), insert("something") or insert("something"), delete(3).
+            # Here we enforce that in this case, the insert op always comes first.
+            # This makes all operations that have the same effect when applied to
+            # a document of the right length equal in respect to the `equals` method.
+            if len(self.ops) > 1 and isinstance(self.ops[-2], str):
+                self.ops[-2] += s
+            else:
+                self.ops.append(self.ops[-1])
+                self.ops[-2] = s
         else:
             self.ops.append(s)
         return self
